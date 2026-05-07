@@ -6,11 +6,7 @@
 <title>일학습병행 구독 인증</title>
 <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
 <style>
-:root {
-  --bg:#0f1923;--card:#1a2535;--primary:#4ECDC4;--secondary:#FFE66D;
-  --accent:#FF6B6B;--text:#ffffff;--subtext:rgba(255,255,255,0.5);
-  --border:rgba(255,255,255,0.08);--success:#06D6A0;--fail:#FF6B6B;
-}
+:root{--bg:#0f1923;--card:#1a2535;--primary:#4ECDC4;--secondary:#FFE66D;--accent:#FF6B6B;--text:#ffffff;--subtext:rgba(255,255,255,0.5);--border:rgba(255,255,255,0.08);--success:#06D6A0;--fail:#FF6B6B}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{font-family:'Apple SD Gothic Neo','Malgun Gothic','나눔고딕',sans-serif;background:var(--bg);min-height:100vh;color:var(--text);padding:0 0 60px;overflow-x:hidden}
 .bg-glow{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
@@ -181,7 +177,7 @@ async function analyzeImage(type,dataUrl){
   const result=await Tesseract.recognize(dataUrl,'kor+eng',{logger:()=>{}});
   stepEl.classList.remove('active');stepEl.classList.add('done');
   const words=result.data.words;
-  const imgH=result.data.lines?.[0]?.bbox?.y1||1000;
+  const imgH=result.data.words.reduce((max,w)=>Math.max(max,w.bbox.y1),0)||1000;
   return type==='blog'?checkBlog(words,imgH):checkInsta(words,imgH);
 }
 function checkBlog(words,imgH){
@@ -197,31 +193,21 @@ function checkBlog(words,imgH){
   return{ok:true,reason:'블로그 이웃 확인 완료!'};
 }
 function checkInsta(words,imgH){
-  const imgW=words.reduce((max,w)=>Math.max(max,w.bbox.x1),0)||500;
   let score=0;
   function mergeNearbyWords(words,imgH){
     const lines=[];const used=new Set();
     const sorted=[...words].sort((a,b)=>(a.bbox.y0+a.bbox.y1)/2-(b.bbox.y0+b.bbox.y1)/2);
     for(let i=0;i<sorted.length;i++){
       if(used.has(i))continue;
-      const base=sorted[i];
-      const baseY=(base.bbox.y0+base.bbox.y1)/2/imgH;
+      const base=sorted[i];const baseY=(base.bbox.y0+base.bbox.y1)/2/imgH;
       const group=[base];used.add(i);
       for(let j=i+1;j<sorted.length;j++){
         if(used.has(j))continue;
-        const cmp=sorted[j];
-        const cmpY=(cmp.bbox.y0+cmp.bbox.y1)/2/imgH;
+        const cmp=sorted[j];const cmpY=(cmp.bbox.y0+cmp.bbox.y1)/2/imgH;
         if(Math.abs(cmpY-baseY)<0.03){group.push(cmp);used.add(j);}
       }
       group.sort((a,b)=>a.bbox.x0-b.bbox.x0);
-      lines.push({
-        text:group.map(w=>w.text).join(''),
-        yRatio:baseY,
-        x0:Math.min(...group.map(w=>w.bbox.x0)),
-        x1:Math.max(...group.map(w=>w.bbox.x1)),
-        y0:Math.min(...group.map(w=>w.bbox.y0)),
-        y1:Math.max(...group.map(w=>w.bbox.y1)),
-      });
+      lines.push({text:group.map(w=>w.text).join(''),yRatio:baseY});
     }
     return lines;
   }
@@ -229,17 +215,13 @@ function checkInsta(words,imgH){
   const allMerged=lines.map(l=>l.text).join(' ');
   const msgLine=lines.find(l=>l.text.includes('메시지'));
   const msgY=msgLine?msgLine.yRatio:null;
-  // ① 팔로잉 텍스트 30~70% (+2점)
   const followingLine=lines.find(l=>(l.text.includes('팔로잉')||l.text.includes('Following'))&&l.yRatio>0.30&&l.yRatio<0.70);
   if(followingLine)score+=2;
-  // ② 팔로잉과 메시지 같은 줄 8% 이내 (+2점)
   if(followingLine&&msgY!==null&&Math.abs(followingLine.yRatio-msgY)<0.08)score+=2;
-  // ③ 팔로잉 근처 화살표 (+1점)
   if(followingLine){
     const arrowNear=lines.some(l=>['▽','v','∨','V','>','⌄','˅'].includes(l.text.trim())&&Math.abs(l.yRatio-followingLine.yRatio)<0.05);
     if(arrowNear)score+=1;
   }
-  // ④ 팔로우 버튼 + 메시지 같은 줄 + 화살표 없음 (-3점)
   const followBtnLine=lines.find(l=>(l.text.includes('팔로우')||l.text.includes('Follow'))&&!l.text.includes('팔로잉')&&l.yRatio>0.30&&l.yRatio<0.70);
   if(followBtnLine&&msgY!==null){
     const sameLineAsMsg=Math.abs(followBtnLine.yRatio-msgY)<0.08;
