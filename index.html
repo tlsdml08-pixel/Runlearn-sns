@@ -70,6 +70,7 @@ h1 em{color:var(--secondary);font-style:normal}
 .v-chip{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700}
 .v-chip.ok{background:rgba(6,214,160,0.12);color:var(--success);border:1px solid rgba(6,214,160,0.2)}
 .v-chip.fail{background:rgba(255,107,107,0.12);color:var(--fail);border:1px solid rgba(255,107,107,0.2)}
+.btn-confirm{width:100%;margin-top:20px;padding:16px;background:linear-gradient(135deg,var(--success),#05b386);color:white;border:none;border-radius:16px;font-weight:900;font-size:16px;cursor:pointer;box-shadow:0 4px 16px rgba(6,214,160,0.3)}
 .ticket-wrap{margin:20px 0 0;background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);border-radius:20px;padding:28px 24px;position:relative;overflow:hidden;text-align:center}
 .ticket-wrap::before,.ticket-wrap::after{content:'';position:absolute;top:50%;width:24px;height:24px;background:var(--card);border-radius:50%;transform:translateY(-50%)}
 .ticket-wrap::before{left:-12px}
@@ -85,6 +86,7 @@ h1 em{color:var(--secondary);font-style:normal}
 .fail-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--subtext);line-height:1.6;padding:4px 0}
 .fail-item::before{content:'→';color:var(--fail);flex-shrink:0;margin-top:1px}
 .btn-retry{display:block;width:100%;margin:16px 0 0;padding:16px;background:rgba(255,255,255,0.06);color:white;border:1px solid var(--border);border-radius:14px;font-size:14px;font-weight:700;cursor:pointer}
+.already-used{background:var(--card);border-radius:24px;padding:40px 24px;text-align:center;border:1px solid var(--border)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes popIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
@@ -141,6 +143,8 @@ h1 em{color:var(--secondary);font-style:normal}
 <div class="result-section" id="resultSection"></div>
 <script>
 const imgs={blog:null,insta:null};
+const USED_KEY='sns_verified_ilhak';
+
 function onFileSelect(type,input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
@@ -159,6 +163,7 @@ function setStatus(type,cls,msg){const el=document.getElementById(type+'Status')
 function checkBothReady(){document.getElementById('verifyBtn').disabled=!(imgs.blog&&imgs.insta);}
 function isBlue(r,g,b){return b>180&&b>r*1.3&&b>g*0.9&&r<180;}
 function isGreen(r,g,b){return g>150&&g>r*1.2&&g>b*1.1;}
+
 function analyzeColor(dataUrl,type){
   return new Promise(resolve=>{
     const img=new Image();
@@ -198,7 +203,13 @@ function analyzeColor(dataUrl,type){
     img.src=dataUrl;
   });
 }
+
 async function startVerify(){
+  // 중복 참여 체크
+  if(localStorage.getItem(USED_KEY)){
+    showAlreadyUsed();
+    return;
+  }
   document.getElementById('uploadSection').style.display='none';
   document.getElementById('loadingSection').classList.add('show');
   setStep(2);
@@ -207,36 +218,89 @@ async function startVerify(){
     showResult(blogResult,instaResult);
   }catch(err){showError();}
 }
+
 function showResult(blogR,instaR){
   setTimeout(()=>{
     document.getElementById('loadingSection').classList.remove('show');
     setStep(3);
     const bothOk=blogR.ok&&instaR.ok;
     const section=document.getElementById('resultSection');
-    const usedKey='sns_verified_ilhak';
-    const alreadyUsed=localStorage.getItem(usedKey);
     if(bothOk){
-      if(alreadyUsed){
-        section.innerHTML=`<div class="result-card"><span class="result-emoji">🙅</span><div class="result-title" style="color:var(--secondary)">이미 참여하셨어요!</div><p class="result-desc">추첨권은 1인 1장만 발급돼요.<br>이미 참여 기록이 있어요 😊</p></div>`;
-      }else{
-        localStorage.setItem(usedKey,Date.now());
-        section.innerHTML=`<div class="result-card"><span class="result-emoji">🎉</span><div class="result-title ok">인증 완료!</div><div class="verify-chips"><div class="v-chip ok">📝 블로그 이웃 ✓</div><div class="v-chip ok">📸 인스타 팔로잉 ✓</div></div><p class="result-desc">SNS 구독이 확인됐어요!<br>아래 추첨권을 직원에게 보여주세요 😊</p><div class="ticket-wrap"><span class="ticket-label">🎫 Raffle Ticket</span><div class="ticket-main">추첨권 발급 완료!</div><hr class="ticket-divider"><div class="ticket-sub">직원에게 이 화면을 보여주세요</div><div class="confetti-row">${['#4ECDC4','#FFE66D','#FF6B6B','#06D6A0','#A78BFA'].map((c,i)=>`<span style="background:${c};animation-delay:${i*0.2}s"></span>`).join('')}</div></div></div>`;
-      }
+      // 인증 완료 → 직원 확인 버튼 표시
+      section.innerHTML=`
+        <div class="result-card">
+          <span class="result-emoji">✅</span>
+          <div class="result-title ok">인증 완료!</div>
+          <div class="verify-chips">
+            <div class="v-chip ok">📝 블로그 이웃 ✓</div>
+            <div class="v-chip ok">📸 인스타 팔로잉 ✓</div>
+          </div>
+          <p class="result-desc">SNS 구독이 확인됐어요!<br>직원에게 이 화면을 보여주세요 😊</p>
+          <button class="btn-confirm" onclick="confirmByStaff()">✅ 직원 확인 완료</button>
+        </div>`;
     }else{
       const failItems=[];
       if(!blogR.ok)failItems.push(blogR.reason);
       if(!instaR.ok)failItems.push(instaR.reason);
-      section.innerHTML=`<div class="result-card"><span class="result-emoji">😢</span><div class="result-title fail">인증 실패</div><div class="verify-chips"><div class="v-chip ${blogR.ok?'ok':'fail'}">📝 블로그 ${blogR.ok?'✓':'✗'}</div><div class="v-chip ${instaR.ok?'ok':'fail'}">📸 인스타 ${instaR.ok?'✓':'✗'}</div></div><p class="result-desc">구독을 확인하지 못했어요 😢</p><div class="fail-detail"><h4>확인이 필요한 항목</h4>${failItems.map(i=>`<div class="fail-item">${i}</div>`).join('')}</div><button class="btn-retry" onclick="resetAll()">다시 시도하기</button></div>`;
+      section.innerHTML=`
+        <div class="result-card">
+          <span class="result-emoji">😢</span>
+          <div class="result-title fail">인증 실패</div>
+          <div class="verify-chips">
+            <div class="v-chip ${blogR.ok?'ok':'fail'}">📝 블로그 ${blogR.ok?'✓':'✗'}</div>
+            <div class="v-chip ${instaR.ok?'ok':'fail'}">📸 인스타 ${instaR.ok?'✓':'✗'}</div>
+          </div>
+          <p class="result-desc">구독을 확인하지 못했어요 😢</p>
+          <div class="fail-detail"><h4>확인이 필요한 항목</h4>${failItems.map(i=>`<div class="fail-item">${i}</div>`).join('')}</div>
+          <button class="btn-retry" onclick="resetAll()">다시 시도하기</button>
+        </div>`;
     }
     section.classList.add('show');
   },800);
 }
+
+function confirmByStaff(){
+  // 직원이 확인 버튼 누르면 → 기록 저장 + 추첨권 화면
+  localStorage.setItem(USED_KEY, Date.now());
+  const section=document.getElementById('resultSection');
+  section.innerHTML=`
+    <div class="result-card">
+      <span class="result-emoji">🎉</span>
+      <div class="result-title ok">추첨권 발급!</div>
+      <div class="verify-chips">
+        <div class="v-chip ok">📝 블로그 이웃 ✓</div>
+        <div class="v-chip ok">📸 인스타 팔로잉 ✓</div>
+      </div>
+      <div class="ticket-wrap">
+        <span class="ticket-label">🎫 Raffle Ticket</span>
+        <div class="ticket-main">추첨권 발급 완료!</div>
+        <hr class="ticket-divider">
+        <div class="ticket-sub">기념품 뽑기에 참여하세요 🎁</div>
+        <div class="confetti-row">${['#4ECDC4','#FFE66D','#FF6B6B','#06D6A0','#A78BFA'].map((c,i)=>`<span style="background:${c};animation-delay:${i*0.2}s"></span>`).join('')}</div>
+      </div>
+    </div>`;
+}
+
+function showAlreadyUsed(){
+  document.getElementById('uploadSection').style.display='none';
+  setStep(3);
+  const section=document.getElementById('resultSection');
+  section.innerHTML=`
+    <div class="already-used">
+      <span style="font-size:56px;display:block;margin-bottom:16px">🙅</span>
+      <div style="font-weight:900;font-size:22px;color:var(--secondary);margin-bottom:12px">이미 참여하셨어요!</div>
+      <p style="font-size:13px;color:var(--subtext);line-height:1.7">추첨권은 1인 1장만 발급돼요.<br>이미 참여 기록이 있어요 😊</p>
+    </div>`;
+  section.classList.add('show');
+}
+
 function showError(){
   document.getElementById('loadingSection').classList.remove('show');
   const section=document.getElementById('resultSection');
   section.innerHTML=`<div class="result-card"><span class="result-emoji">⚠️</span><div class="result-title" style="color:#FFE66D">오류 발생</div><p class="result-desc">다시 시도하거나 직원에게 문의해주세요.</p><button class="btn-retry" onclick="resetAll()">다시 시도하기</button></div>`;
   section.classList.add('show');
 }
+
 function setStep(n){
   for(let i=1;i<=3;i++){
     const c=document.getElementById('s'+i);const l=document.getElementById('sl'+i);
@@ -247,6 +311,7 @@ function setStep(n){
   if(n>1)document.getElementById('line1').classList.add('done');
   if(n>2)document.getElementById('line2').classList.add('done');
 }
+
 function resetAll(){
   imgs.blog=null;imgs.insta=null;
   ['blog','insta'].forEach(t=>{
