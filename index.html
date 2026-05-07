@@ -193,8 +193,7 @@ function checkBlog(words,imgH){
   return{ok:true,reason:'블로그 이웃 확인 완료!'};
 }
 function checkInsta(words,imgH){
-  let score=0;
-  function mergeNearbyWords(words,imgH){
+  function merge(words,imgH){
     const lines=[];const used=new Set();
     const sorted=[...words].sort((a,b)=>(a.bbox.y0+a.bbox.y1)/2-(b.bbox.y0+b.bbox.y1)/2);
     for(let i=0;i<sorted.length;i++){
@@ -211,47 +210,26 @@ function checkInsta(words,imgH){
     }
     return lines;
   }
-  const lines=mergeNearbyWords(words,imgH);
+  const lines=merge(words,imgH);
   const allMerged=lines.map(l=>l.text).join(' ');
-  const msgLine=lines.find(l=>l.text.includes('메시지'));
-  const msgY=msgLine?msgLine.yRatio:null;
 
-  // ① 팔로잉 + 메시지가 같은 줄 → 확실한 팔로잉 버튼 (+4점)
-  const followingLine=lines.find(l=>
-    (l.text.includes('팔로잉')||l.text.includes('Following'))
+  // 팔로잉 + 메시지가 같은 줄 → 무조건 팔로잉 버튼
+  const hit=lines.find(l=>
+    l.text.includes('팔로잉')&&l.text.includes('메시지')
+    &&l.yRatio>0.25&&l.yRatio<0.75
+  );
+  if(hit)return{ok:true,reason:'인스타 팔로잉 확인 완료!'};
+
+  // 팔로우 + 메시지가 같은 줄 → 미구독
+  const miss=lines.find(l=>
+    l.text.includes('팔로우')&&!l.text.includes('팔로잉')
     &&l.text.includes('메시지')
     &&l.yRatio>0.25&&l.yRatio<0.75
   );
-  if(followingLine)score+=4;
+  if(miss)return{ok:false,reason:'아직 팔로잉 상태가 아니에요. 인스타에서 팔로우 버튼을 눌러주세요!'};
 
-  // ①-b 팔로잉만 있고 메시지 줄과 가까운 경우 (+2+2점)
-  if(!followingLine){
-    const followingLineOnly=lines.find(l=>
-      (l.text.includes('팔로잉')||l.text.includes('Following'))
-      &&l.yRatio>0.25&&l.yRatio<0.75
-    );
-    if(followingLineOnly)score+=2;
-    if(followingLineOnly&&msgY!==null&&Math.abs(followingLineOnly.yRatio-msgY)<0.08)score+=2;
-  }
-
-  // ② 팔로우 버튼 + 메시지 같은 줄 + 화살표 없음 (-3점)
-  const followBtnLine=lines.find(l=>
-    (l.text.includes('팔로우')||l.text.includes('Follow'))
-    &&!l.text.includes('팔로잉')
-    &&l.yRatio>0.25&&l.yRatio<0.75
-  );
-  if(followBtnLine&&msgY!==null){
-    const sameLineAsMsg=Math.abs(followBtnLine.yRatio-msgY)<0.08;
-    const hasArrow=lines.some(l=>
-      ['▽','v','∨','V','>','⌄','˅'].includes(l.text.trim())
-      &&Math.abs(l.yRatio-followBtnLine.yRatio)<0.05
-    );
-    if(sameLineAsMsg&&!hasArrow)score-=3;
-  }
-
-  if(score>=2)return{ok:true,reason:'인스타 팔로잉 확인 완료!'};
-  if(!allMerged.includes('팔로잉')&&!allMerged.includes('팔로우')&&!allMerged.includes('Following'))
-    return{ok:false,reason:'인스타 프로필 화면이 맞는지 확인해주세요. 팔로잉 버튼이 보이게 캡처해주세요.'};
+  if(!allMerged.includes('팔로잉')&&!allMerged.includes('팔로우'))
+    return{ok:false,reason:'인스타 프로필 화면이 맞는지 확인해주세요.'};
   return{ok:false,reason:'아직 팔로잉 상태가 아니에요. 인스타에서 팔로우 버튼을 눌러주세요!'};
 }
 function showResult(blogR,instaR){
