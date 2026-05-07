@@ -2,307 +2,71 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>일학습병행 구독 인증</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCR 디버그</title>
 <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
 <style>
-:root{--bg:#0f1923;--card:#1a2535;--primary:#4ECDC4;--secondary:#FFE66D;--accent:#FF6B6B;--text:#ffffff;--subtext:rgba(255,255,255,0.5);--border:rgba(255,255,255,0.08);--success:#06D6A0;--fail:#FF6B6B}
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{font-family:'Apple SD Gothic Neo','Malgun Gothic','나눔고딕',sans-serif;background:var(--bg);min-height:100vh;color:var(--text);padding:0 0 60px;overflow-x:hidden}
-.bg-glow{position:fixed;border-radius:50%;filter:blur(80px);pointer-events:none;z-index:0}
-.bg-glow-1{width:300px;height:300px;background:rgba(78,205,196,0.08);top:-50px;left:-80px}
-.bg-glow-2{width:250px;height:250px;background:rgba(255,107,107,0.06);bottom:100px;right:-60px}
-.header{position:relative;z-index:1;padding:40px 20px 28px;text-align:center}
-.logo-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(78,205,196,0.12);border:1px solid rgba(78,205,196,0.25);border-radius:20px;padding:6px 16px;margin-bottom:20px;font-size:11px;font-weight:700;color:var(--primary);letter-spacing:1.5px;text-transform:uppercase}
-.logo-dot{width:6px;height:6px;background:var(--primary);border-radius:50%;animation:blink 1.5s ease infinite}
-h1{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-weight:900;font-size:24px;line-height:1.35;margin-bottom:10px}
-h1 em{color:var(--secondary);font-style:normal}
-.header-sub{font-size:13px;color:var(--subtext);line-height:1.7}
-.step-bar{display:flex;align-items:center;justify-content:center;padding:0 20px 28px;position:relative;z-index:1}
-.step-item{display:flex;flex-direction:column;align-items:center;gap:6px}
-.step-circle{width:32px;height:32px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--subtext);transition:all 0.4s;background:var(--card)}
-.step-circle.active{border-color:var(--primary);color:var(--primary);background:rgba(78,205,196,0.1)}
-.step-circle.done{border-color:var(--success);background:var(--success);color:white}
-.step-label{font-size:10px;color:var(--subtext);transition:color 0.4s;white-space:nowrap}
-.step-label.active{color:var(--primary)}
-.step-line{width:40px;height:2px;background:var(--border);margin:0 4px 18px;transition:background 0.4s}
-.step-line.done{background:var(--success)}
-.content{position:relative;z-index:1;padding:0 16px}
-.upload-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:20px;margin-bottom:14px;transition:border-color 0.3s}
-.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.card-icon{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.card-icon.blog{background:rgba(3,199,90,0.15)}
-.card-icon.insta{background:rgba(255,107,107,0.15)}
-.card-header-text h3{font-size:15px;font-weight:700;margin-bottom:3px}
-.card-header-text p{font-size:12px;color:var(--subtext)}
-.upload-zone{border:1.5px dashed rgba(255,255,255,0.15);border-radius:14px;padding:20px;text-align:center;cursor:pointer;transition:all 0.3s;position:relative;background:rgba(255,255,255,0.02);min-height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+body{font-family:sans-serif;padding:20px;background:#111;color:#fff}
+textarea{width:100%;height:200px;background:#222;color:#0f0;font-size:11px;padding:8px}
+button{padding:12px 24px;background:#4ECDC4;border:none;border-radius:8px;font-size:16px;cursor:pointer;margin-top:10px;width:100%}
+.upload-zone{border:2px dashed #444;border-radius:12px;padding:20px;text-align:center;margin-bottom:10px;cursor:pointer;position:relative}
 .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.upload-icon-wrap{font-size:28px;margin-bottom:8px}
-.upload-text{font-size:13px;font-weight:600;color:rgba(255,255,255,0.7)}
-.upload-hint{font-size:11px;color:var(--subtext);margin-top:4px}
-.preview-wrap{display:none;position:relative}
-.preview-wrap.show{display:block}
-.preview-img{width:100%;max-height:180px;object-fit:contain;border-radius:10px;display:block}
-.preview-change{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.7);color:white;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer}
-.status-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;margin-top:12px}
-.status-chip.waiting{background:rgba(255,255,255,0.06);color:var(--subtext)}
-.status-chip.scanning{background:rgba(78,205,196,0.12);color:var(--primary)}
-.btn-wrap{margin-top:8px}
-.btn-main{width:100%;padding:18px;background:linear-gradient(135deg,var(--primary),#38b2ac);color:#0f1923;border:none;border-radius:16px;font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-weight:900;font-size:17px;cursor:pointer;transition:all 0.3s;box-shadow:0 6px 24px rgba(78,205,196,0.25)}
-.btn-main:disabled{background:rgba(255,255,255,0.08);color:var(--subtext);box-shadow:none;cursor:not-allowed}
-.loading-section{display:none;padding:60px 20px;text-align:center}
-.loading-section.show{display:block}
-.loading-rings{position:relative;width:80px;height:80px;margin:0 auto 24px}
-.ring{position:absolute;border-radius:50%;border:3px solid transparent;animation:spin 1.2s linear infinite}
-.ring-1{inset:0;border-top-color:var(--primary)}
-.ring-2{inset:10px;border-top-color:var(--secondary);animation-duration:0.9s;animation-direction:reverse}
-.ring-3{inset:20px;border-top-color:var(--accent);animation-duration:0.7s}
-.loading-title{font-size:17px;font-weight:700;margin-bottom:8px}
-.loading-steps{list-style:none}
-.loading-steps li{font-size:12px;color:var(--subtext);padding:4px 0;transition:color 0.3s}
-.loading-steps li.active{color:var(--primary);font-weight:600}
-.loading-steps li.done{color:var(--success)}
-.result-section{display:none;padding:0 16px}
-.result-section.show{display:block;animation:popIn 0.5s cubic-bezier(0.34,1.56,0.64,1)}
-.result-card{background:var(--card);border-radius:24px;overflow:hidden;border:1px solid var(--border)}
-.result-top{padding:36px 24px 24px;text-align:center}
-.result-emoji{font-size:56px;margin-bottom:16px;display:block}
-.result-title{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-weight:900;font-size:22px;margin-bottom:8px}
-.result-title.ok{color:var(--success)}
-.result-title.fail{color:var(--fail)}
-.result-desc{font-size:13px;color:var(--subtext);line-height:1.7}
-.verify-chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:16px 0}
-.v-chip{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:700}
-.v-chip.ok{background:rgba(6,214,160,0.12);color:var(--success);border:1px solid rgba(6,214,160,0.2)}
-.v-chip.fail{background:rgba(255,107,107,0.12);color:var(--fail);border:1px solid rgba(255,107,107,0.2)}
-.ticket-wrap{margin:0 16px 16px;background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);border-radius:18px;padding:24px 20px;position:relative;overflow:hidden}
-.ticket-wrap::before,.ticket-wrap::after{content:'';position:absolute;top:50%;width:24px;height:24px;background:var(--bg);border-radius:50%;transform:translateY(-50%)}
-.ticket-wrap::before{left:-12px}
-.ticket-wrap::after{right:-12px}
-.ticket-label{font-size:10px;letter-spacing:3px;color:var(--secondary);text-transform:uppercase;font-weight:700;margin-bottom:10px}
-.ticket-main{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-weight:900;font-size:20px;color:white;margin-bottom:4px}
-.ticket-divider{border:none;border-top:1px dashed rgba(255,255,255,0.15);margin:14px 20px}
-.ticket-sub{font-size:11px;color:rgba(255,255,255,0.4);text-align:center}
-.confetti-row{display:flex;justify-content:center;gap:5px;margin-top:14px}
-.confetti-row span{width:8px;height:8px;border-radius:2px;animation:confetti 1.4s ease infinite}
-.fail-detail{margin:0 16px 16px;background:rgba(255,107,107,0.06);border:1px solid rgba(255,107,107,0.15);border-radius:16px;padding:16px}
-.fail-detail h4{font-size:13px;color:var(--fail);margin-bottom:10px}
-.fail-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--subtext);line-height:1.6;padding:4px 0}
-.fail-item::before{content:'→';color:var(--fail);flex-shrink:0;margin-top:1px}
-.btn-retry{display:block;width:calc(100% - 32px);margin:0 16px 16px;padding:16px;background:rgba(255,255,255,0.06);color:white;border:1px solid var(--border);border-radius:14px;font-size:14px;font-weight:700;cursor:pointer}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes popIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
-@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(16px) rotate(180deg);opacity:0}}
+img{max-width:100%;max-height:200px;margin-top:8px;border-radius:8px}
 </style>
 </head>
 <body>
-<div class="bg-glow bg-glow-1"></div>
-<div class="bg-glow bg-glow-2"></div>
-<div class="header">
-  <div class="logo-badge"><div class="logo-dot"></div>일학습병행 부스 이벤트</div>
-  <h1>SNS 구독 인증하고<br><em>추첨권 받아가세요!</em></h1>
-  <p class="header-sub">네이버 블로그 이웃 + 인스타 팔로잉<br>둘 다 인증 시 기념품 뽑기 추첨권 1장 🎁</p>
+<h2>📸 인스타 OCR 디버그</h2>
+<div class="upload-zone">
+  <input type="file" accept="image/*" id="f" onchange="load(this)">
+  <div>이미지 업로드</div>
+  <img id="preview" style="display:none">
 </div>
-<div class="step-bar">
-  <div class="step-item"><div class="step-circle active" id="s1">1</div><div class="step-label active" id="sl1">캡처 업로드</div></div>
-  <div class="step-line" id="line1"></div>
-  <div class="step-item"><div class="step-circle" id="s2">2</div><div class="step-label" id="sl2">인증 확인</div></div>
-  <div class="step-line" id="line2"></div>
-  <div class="step-item"><div class="step-circle" id="s3">3</div><div class="step-label" id="sl3">추첨권 발급</div></div>
-</div>
-<div class="content" id="uploadSection">
-  <div class="upload-card" id="blogCard">
-    <div class="card-header">
-      <div class="card-icon blog">📝</div>
-      <div class="card-header-text"><h3>네이버 블로그</h3><p>일학습병행 블로그 이웃 추가 후 캡처</p></div>
-    </div>
-    <div class="upload-zone">
-      <input type="file" accept="image/*" id="blogFile" onchange="onFileSelect('blog',this)">
-      <div id="blogPlaceholder"><div class="upload-icon-wrap">📷</div><div class="upload-text">캡처 이미지 올리기</div><div class="upload-hint">버튼에 <strong>"이웃"</strong> 텍스트가 보이게 캡처해주세요</div></div>
-      <div class="preview-wrap" id="blogPreviewWrap"><img class="preview-img" id="blogPreviewImg" alt=""><button class="preview-change" onclick="changeFile('blog',event)">다시 선택</button></div>
-    </div>
-    <div class="status-chip waiting" id="blogStatus"><span>⏳</span> 이미지를 업로드해주세요</div>
-  </div>
-  <div class="upload-card" id="instaCard">
-    <div class="card-header">
-      <div class="card-icon insta">📸</div>
-      <div class="card-header-text"><h3>인스타그램</h3><p>일학습병행 인스타 팔로잉 후 캡처</p></div>
-    </div>
-    <div class="upload-zone">
-      <input type="file" accept="image/*" id="instaFile" onchange="onFileSelect('insta',this)">
-      <div id="instaPlaceholder"><div class="upload-icon-wrap">📷</div><div class="upload-text">캡처 이미지 올리기</div><div class="upload-hint">버튼에 <strong>"팔로잉"</strong> 텍스트가 보이게 캡처해주세요</div></div>
-      <div class="preview-wrap" id="instaPreviewWrap"><img class="preview-img" id="instaPreviewImg" alt=""><button class="preview-change" onclick="changeFile('insta',event)">다시 선택</button></div>
-    </div>
-    <div class="status-chip waiting" id="instaStatus"><span>⏳</span> 이미지를 업로드해주세요</div>
-  </div>
-  <div class="btn-wrap"><button class="btn-main" id="verifyBtn" disabled onclick="startVerify()">구독 인증하기</button></div>
-</div>
-<div class="loading-section" id="loadingSection">
-  <div class="loading-rings"><div class="ring ring-1"></div><div class="ring ring-2"></div><div class="ring ring-3"></div></div>
-  <div class="loading-title">구독 여부 확인 중...</div>
-  <ul class="loading-steps"><li id="lstep1">📝 블로그 이미지 분석 중</li><li id="lstep2">📸 인스타 이미지 분석 중</li><li id="lstep3">✅ 결과 처리 중</li></ul>
-</div>
-<div class="result-section" id="resultSection"></div>
+<button onclick="run()">OCR 실행</button>
+<h3 style="margin-top:16px">결과:</h3>
+<textarea id="out">여기에 결과 나와요...</textarea>
+
 <script>
-const imgs={blog:null,insta:null};
-function onFileSelect(type,input){
+let dataUrl=null;
+function load(input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
   reader.onload=e=>{
-    imgs[type]=e.target.result;
-    document.getElementById(type+'PreviewImg').src=e.target.result;
-    document.getElementById(type+'PreviewWrap').classList.add('show');
-    document.getElementById(type+'Placeholder').style.display='none';
-    setStatus(type,'scanning','✅ 이미지 업로드 완료');
-    checkBothReady();
+    dataUrl=e.target.result;
+    const img=document.getElementById('preview');
+    img.src=dataUrl;img.style.display='block';
   };
   reader.readAsDataURL(file);
 }
-function changeFile(type,e){e.stopPropagation();document.getElementById(type+'File').click();}
-function setStatus(type,cls,msg){const el=document.getElementById(type+'Status');el.className='status-chip '+cls;el.innerHTML=msg;}
-function checkBothReady(){document.getElementById('verifyBtn').disabled=!(imgs.blog&&imgs.insta);}
-async function startVerify(){
-  document.getElementById('uploadSection').style.display='none';
-  document.getElementById('loadingSection').classList.add('show');
-  setStep(2);
-  try{
-    const[blogResult,instaResult]=await Promise.all([analyzeImage('blog',imgs.blog),analyzeImage('insta',imgs.insta)]);
-    showResult(blogResult,instaResult);
-  }catch(err){showError();}
-}
-async function analyzeImage(type,dataUrl){
-  const stepEl=document.getElementById(type==='blog'?'lstep1':'lstep2');
-  stepEl.classList.add('active');
+async function run(){
+  if(!dataUrl){alert('이미지 먼저!');return;}
+  document.getElementById('out').value='분석 중...';
   const result=await Tesseract.recognize(dataUrl,'kor+eng',{logger:()=>{}});
-  stepEl.classList.remove('active');stepEl.classList.add('done');
   const words=result.data.words;
   const imgH=words.reduce((max,w)=>Math.max(max,w.bbox.y1),0)||1000;
-  return type==='blog'?checkBlog(words,imgH):checkInsta(words,imgH);
-}
-function checkBlog(words,imgH){
-  const allText=words.map(w=>w.text).join(' ');
-  const hasAddNeighbor=words.some(w=>w.text.includes('이웃추가')||w.text.includes('추가'));
-  if(hasAddNeighbor)return{ok:false,reason:'아직 이웃 추가가 되지 않았어요. 블로그에서 이웃추가 버튼을 눌러주세요!'};
-  const neighborWord=words.find(w=>{
-    const t=w.text.trim();const yRatio=(w.bbox.y0+w.bbox.y1)/2/imgH;
-    return(t==='이웃'||t==='이웃.')&&yRatio>0.45&&yRatio<0.82;
+  let out='imgH='+imgH+'\n\n';
+  out+='=== 전체 단어 목록 ===\n';
+  words.forEach(w=>{
+    const y=((w.bbox.y0+w.bbox.y1)/2/imgH).toFixed(3);
+    out+=`y:${y} | '${w.text}'\n`;
   });
-  if(neighborWord)return{ok:true,reason:'블로그 이웃 확인 완료!'};
-  if(!allText.includes('이웃'))return{ok:false,reason:'블로그 캡처에서 이웃 버튼을 찾지 못했어요. 블로그 프로필 화면을 캡처해주세요.'};
-  return{ok:true,reason:'블로그 이웃 확인 완료!'};
-}
-function checkInsta(words,imgH){
-  let score=0;
-  function mergeNearbyWords(words,imgH){
-    const lines=[];const used=new Set();
-    const sorted=[...words].sort((a,b)=>(a.bbox.y0+a.bbox.y1)/2-(b.bbox.y0+b.bbox.y1)/2);
-    for(let i=0;i<sorted.length;i++){
-      if(used.has(i))continue;
-      const base=sorted[i];const baseY=(base.bbox.y0+base.bbox.y1)/2/imgH;
-      const group=[base];used.add(i);
-      for(let j=i+1;j<sorted.length;j++){
-        if(used.has(j))continue;
-        const cmp=sorted[j];const cmpY=(cmp.bbox.y0+cmp.bbox.y1)/2/imgH;
-        if(Math.abs(cmpY-baseY)<0.03){group.push(cmp);used.add(j);}
-      }
-      group.sort((a,b)=>a.bbox.x0-b.bbox.x0);
-      lines.push({text:group.map(w=>w.text).join(''),yRatio:baseY});
+  // mergeNearbyWords
+  const lines=[];const used=new Set();
+  const sorted=[...words].sort((a,b)=>(a.bbox.y0+a.bbox.y1)/2-(b.bbox.y0+b.bbox.y1)/2);
+  for(let i=0;i<sorted.length;i++){
+    if(used.has(i))continue;
+    const base=sorted[i];const baseY=(base.bbox.y0+base.bbox.y1)/2/imgH;
+    const group=[base];used.add(i);
+    for(let j=i+1;j<sorted.length;j++){
+      if(used.has(j))continue;
+      const cmp=sorted[j];const cmpY=(cmp.bbox.y0+cmp.bbox.y1)/2/imgH;
+      if(Math.abs(cmpY-baseY)<0.03){group.push(cmp);used.add(j);}
     }
-    return lines;
+    group.sort((a,b)=>a.bbox.x0-b.bbox.x0);
+    lines.push({text:group.map(w=>w.text).join(''),yRatio:baseY});
   }
-  const lines=mergeNearbyWords(words,imgH);
-  const allMerged=lines.map(l=>l.text).join(' ');
-  const msgLine=lines.find(l=>l.text.includes('메시지'));
-  const msgY=msgLine?msgLine.yRatio:null;
-
-  // ① 팔로잉 + 메시지가 같은 줄 → 확실한 팔로잉 버튼 (+4점)
-  const followingLine=lines.find(l=>
-    (l.text.includes('팔로잉')||l.text.includes('Following'))
-    &&l.text.includes('메시지')
-    &&l.yRatio>0.25&&l.yRatio<0.75
-  );
-  if(followingLine)score+=4;
-
-  // ①-b 팔로잉만 있고 메시지 줄과 가까운 경우 (+2+2점)
-  if(!followingLine){
-    const followingLineOnly=lines.find(l=>
-      (l.text.includes('팔로잉')||l.text.includes('Following'))
-      &&l.yRatio>0.25&&l.yRatio<0.75
-    );
-    if(followingLineOnly)score+=2;
-    if(followingLineOnly&&msgY!==null&&Math.abs(followingLineOnly.yRatio-msgY)<0.08)score+=2;
-  }
-
-  // ② 팔로우 버튼 + 메시지 같은 줄 + 화살표 없음 (-3점)
-  const followBtnLine=lines.find(l=>
-    (l.text.includes('팔로우')||l.text.includes('Follow'))
-    &&!l.text.includes('팔로잉')
-    &&l.yRatio>0.25&&l.yRatio<0.75
-  );
-  if(followBtnLine&&msgY!==null){
-    const sameLineAsMsg=Math.abs(followBtnLine.yRatio-msgY)<0.08;
-    const hasArrow=lines.some(l=>
-      ['▽','v','∨','V','>','⌄','˅'].includes(l.text.trim())
-      &&Math.abs(l.yRatio-followBtnLine.yRatio)<0.05
-    );
-    if(sameLineAsMsg&&!hasArrow)score-=3;
-  }
-
-  if(score>=2)return{ok:true,reason:'인스타 팔로잉 확인 완료!'};
-  if(!allMerged.includes('팔로잉')&&!allMerged.includes('팔로우')&&!allMerged.includes('Following'))
-    return{ok:false,reason:'인스타 프로필 화면이 맞는지 확인해주세요. 팔로잉 버튼이 보이게 캡처해주세요.'};
-  return{ok:false,reason:'아직 팔로잉 상태가 아니에요. 인스타에서 팔로우 버튼을 눌러주세요!'};
-}
-function showResult(blogR,instaR){
-  document.getElementById('lstep3').classList.add('active');
-  setTimeout(()=>{
-    document.getElementById('loadingSection').classList.remove('show');
-    setStep(3);
-    const bothOk=blogR.ok&&instaR.ok;
-    const section=document.getElementById('resultSection');
-    if(bothOk){
-      section.innerHTML=`<div class="result-card"><div class="result-top"><span class="result-emoji">🎉</span><div class="result-title ok">인증 완료!</div><div class="verify-chips"><div class="v-chip ok">📝 블로그 이웃 ✓</div><div class="v-chip ok">📸 인스타 팔로잉 ✓</div></div><p class="result-desc">SNS 구독이 확인됐어요!<br>아래 추첨권을 직원에게 보여주세요 😊</p></div></div><div class="ticket-wrap"><div class="ticket-label">🎫 Raffle Ticket</div><div class="ticket-main">추첨권 발급 완료!</div><hr class="ticket-divider"><div class="ticket-sub">직원에게 이 화면을 보여주세요</div><div class="confetti-row">${['#4ECDC4','#FFE66D','#FF6B6B','#06D6A0','#A78BFA'].map((c,i)=>`<span style="background:${c};animation-delay:${i*0.2}s"></span>`).join('')}</div></div>`;
-    }else{
-      const failItems=[];
-      if(!blogR.ok)failItems.push(blogR.reason);
-      if(!instaR.ok)failItems.push(instaR.reason);
-      section.innerHTML=`<div class="result-card"><div class="result-top"><span class="result-emoji">😢</span><div class="result-title fail">인증 실패</div><div class="verify-chips"><div class="v-chip ${blogR.ok?'ok':'fail'}">📝 블로그 ${blogR.ok?'✓':'✗'}</div><div class="v-chip ${instaR.ok?'ok':'fail'}">📸 인스타 ${instaR.ok?'✓':'✗'}</div></div><p class="result-desc">구독을 확인하지 못했어요 😢</p></div></div><div class="fail-detail"><h4>확인이 필요한 항목</h4>${failItems.map(i=>`<div class="fail-item">${i}</div>`).join('')}</div><button class="btn-retry" onclick="resetAll()">다시 시도하기</button>`;
-    }
-    section.classList.add('show');
-  },600);
-}
-function showError(){
-  document.getElementById('loadingSection').classList.remove('show');
-  const section=document.getElementById('resultSection');
-  section.innerHTML=`<div class="result-card"><div class="result-top"><span class="result-emoji">⚠️</span><div class="result-title" style="color:#FFE66D">오류 발생</div><p class="result-desc">이미지 분석 중 오류가 생겼어요.<br>다시 시도하거나 직원에게 문의해주세요.</p></div></div><button class="btn-retry" onclick="resetAll()">다시 시도하기</button>`;
-  section.classList.add('show');
-}
-function setStep(n){
-  for(let i=1;i<=3;i++){
-    const c=document.getElementById('s'+i);const l=document.getElementById('sl'+i);
-    if(i<n){c.className='step-circle done';c.textContent='✓';}
-    else if(i===n){c.className='step-circle active';l.className='step-label active';}
-    else{c.className='step-circle';l.className='step-label';}
-  }
-  if(n>1)document.getElementById('line1').classList.add('done');
-  if(n>2)document.getElementById('line2').classList.add('done');
-}
-function resetAll(){
-  imgs.blog=null;imgs.insta=null;
-  ['blog','insta'].forEach(t=>{
-    document.getElementById(t+'PreviewWrap').classList.remove('show');
-    document.getElementById(t+'Placeholder').style.display='';
-    document.getElementById(t+'File').value='';
-    setStatus(t,'waiting','⏳ 이미지를 업로드해주세요');
-    document.getElementById(t+'Card').className='upload-card';
-  });
-  document.getElementById('verifyBtn').disabled=true;
-  document.getElementById('resultSection').classList.remove('show');
-  document.getElementById('resultSection').innerHTML='';
-  document.getElementById('uploadSection').style.display='';
-  ['lstep1','lstep2','lstep3'].forEach(id=>{document.getElementById(id).className='';});
-  setStep(1);window.scrollTo(0,0);
+  out+='\n=== 합쳐진 줄 ===\n';
+  lines.forEach(l=>out+=`y:${l.yRatio.toFixed(3)} | '${l.text}'\n`);
+  document.getElementById('out').value=out;
 }
 </script>
 </body>
